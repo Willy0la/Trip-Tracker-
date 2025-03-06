@@ -1,0 +1,8 @@
+What should be covered
+Midpoint Mapping Before Trip Starts (Ensures accuracy ≤ 15m)
+User Notification for Mapped Midpoint
+Position Update Every 10 Seconds
+Trip Data Includes: Name, Total Distance, Midpoint, Locations
+Download Trip Data in JSON Format
+ Route Drawing on the Map
+Ensures Location Accuracy ≤ 15m Before Tracking

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Trip Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Real-Time Trip Tracker</h1>
+
+        <form id="tripForm">
+            <label for="tripName">Enter Trip Name:</label>
+            <input type="text" id="tripName" required>
+            <button type="submit">Start Trip</button>
+        </form>
+
+        <div id="map"></div>
+
+        <div class="info">
+            <p>Status: <span id="statusText">Not started</span></p>
+            <p>Total Distance: <span id="distanceCounter">0</span> km</p>
+            <button id="startButton" disabled>Start Tracking</button>
+            <button id="stopButton" disabled>Stop Tracking</button>
+        </div>
+    </div>
+
+    <script src="trippy.js"></script>
+</body>
+</html>
