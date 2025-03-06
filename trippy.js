@@ -1,6 +1,5 @@
 "use strict"
 
-
 let map, userMarker, midpointMarker, routeLine;
 let tripStarted = false;
 let tripName = '';
@@ -12,9 +11,9 @@ let locations = [];
 let trackingInterval;
 let totalDistanceCovered = 0;
 
-//map
+// Initialize map
 function initMap() {
-    map = L.map('map').setView([0, 0], 13); // Initially setting to (0,0)
+    map = L.map('map').setView([0, 0], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
     userMarker = L.marker([0, 0]).addTo(map);
@@ -22,27 +21,7 @@ function initMap() {
     routeLine = L.polyline([], { color: 'blue' }).addTo(map);
 }
 
-// midpoint
-function calculateMidpoint(lat1, lon1, lat2, lon2) {
-    return { lat: (lat1 + lat2) / 2, lon: (lon1 + lon2) / 2 };
-}
-
-//  trip name notif
-function promptForTripName() {
-    const tripNameInput = document.getElementById('tripName');
-    const tripForm = document.getElementById('tripForm');
-    tripForm.style.display = 'block';
-
-    tripForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        tripName = tripNameInput.value;
-        tripForm.style.display = 'none';
-        document.getElementById('startButton').disabled = false;
-        getAccurateLocation();
-    });
-}
-
-//  accurate location
+// Ensure accurate location before prompting trip name
 function getAccurateLocation() {
     navigator.geolocation.watchPosition(
         function (position) {
@@ -53,7 +32,8 @@ function getAccurateLocation() {
                 userMarker.setLatLng([currentLocation.lat, currentLocation.lon]);
                 midpointMarker.setLatLng([currentLocation.lat, currentLocation.lon]);
                 midpoint = currentLocation;
-                alert(`Midpoint mapped at Latitude: ${midpoint.lat}, Longitude: ${midpoint.lon}`);
+                notifyUser(`Midpoint mapped at Latitude: ${midpoint.lat}, Longitude: ${midpoint.lon}`);
+                promptForTripName();
             }
         },
         function () {
@@ -63,7 +43,36 @@ function getAccurateLocation() {
     );
 }
 
-//  start 
+// Notify user function
+function notifyUser(message) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(message);
+    } else if ("Notification" in window && Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                new Notification(message);
+            }
+        });
+    } else {
+        alert(message);
+    }
+}
+
+// Prompt user for trip name
+function promptForTripName() {
+    const tripNameInput = document.getElementById('tripName');
+    const tripForm = document.getElementById('tripForm');
+    tripForm.style.display = 'block';
+
+    tripForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        tripName = tripNameInput.value;
+        tripForm.style.display = 'none';
+        document.getElementById('startButton').disabled = false;
+    });
+}
+
+// Start tracking
 function startTrip() {
     if (!tripStarted) {
         tripStarted = true;
@@ -74,7 +83,7 @@ function startTrip() {
     }
 }
 
-//  track location every 10 seconds
+// Track location every 10 seconds
 function trackLocation() {
     trackingInterval = setInterval(() => {
         if (tripStarted) {
@@ -98,7 +107,7 @@ function trackLocation() {
     }, 10000);
 }
 
-//  stop tracking
+// Stop tracking
 function stopTrip() {
     if (tripStarted) {
         tripStarted = false;
@@ -110,7 +119,7 @@ function stopTrip() {
     }
 }
 
-// Function to calculate distance using Haversine formula
+// Calculate distance using Haversine formula
 function getDistanceInKm(loc1, loc2) {
     const R = 6371;
     const dLat = toRad(loc2.lat - loc1.lat);
@@ -124,7 +133,7 @@ function toRad(deg) {
     return deg * (Math.PI / 180);
 }
 
-//  download trip data
+// Download trip data
 function downloadTripData() {
     let tripData = {
         name: tripName,
@@ -146,5 +155,6 @@ function downloadTripData() {
 document.getElementById('startButton').addEventListener('click', startTrip);
 document.getElementById('stopButton').addEventListener('click', stopTrip);
 
+// Initialize map and location tracking
 initMap();
-promptForTripName();
+getAccurateLocation();
