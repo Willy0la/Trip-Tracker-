@@ -1,207 +1,146 @@
-"use strict";
-
-let map, userMarker, midpointMarker, routeLine;
-let tripStarted = false;
+let tracking = false;
+let distance = 0;
+let lstLat = null;
+let lstLon = null;
 let tripName = "";
-let currentLocation = { lat: 0, lon: 0 };
-let previousLocation = { lat: 0, lon: 0 };
-let midpoint = { lat: 0, lon: 0 };
-let accuracyThreshold = 15;
-let locations = [];
-let trackingInterval;
-let totalDistanceCovered = 0;
-let tripNameSet = false;
-let locationAttempts = 0;
-let maxLocationAttempts = 5;
-let watchId;
-let movementThreshold = 50;
+let midpoint = null;
+let map;
+let userMarker;
+let retrying = false; // Flag to track retry state
 
-// Initialize Map
+// Initialize the map
 function initMap() {
-  map = L.map("map").setView([0, 0], 13);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    map = L.map("map").setView([0, 0], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
 
-  userMarker = L.marker([0, 0]).addTo(map);
-  midpointMarker = L.marker([0, 0], { color: "red" }).addTo(map);
-  routeLine = L.polyline([], { color: "blue" }).addTo(map);
+    userMarker = L.marker([0, 0]).addTo(map);
 }
 
-// Get Accurate Location Before Starting Trip
-function getAccurateLocation() {
-  locationAttempts = 0;
-  watchId = navigator.geolocation.watchPosition(
-    function (position) {
-      if (position.coords.accuracy <= accuracyThreshold && !tripNameSet) {
-        tripNameSet = true;
-        currentLocation.lat = position.coords.latitude;
-        currentLocation.lon = position.coords.longitude;
-        map.setView([currentLocation.lat, currentLocation.lon], 13);
-        userMarker.setLatLng([currentLocation.lat, currentLocation.lon]);
-        midpointMarker.setLatLng([currentLocation.lat, currentLocation.lon]);
-        midpoint = currentLocation;
-        notifyUser(
-          `Midpoint mapped at Latitude: ${midpoint.lat}, Longitude: ${midpoint.lon}`
-        );
-        promptForTripName();
-      } else {
-        locationAttempts++;
-        if (locationAttempts >= maxLocationAttempts) {
-          navigator.geolocation.clearWatch(watchId);
-          let retry = confirm(
-            "Unable to retrieve accurate location. Move to an open area and try again?"
-          );
-          if (retry) {
-            getAccurateLocation();
-          } else {
-            alert("Please move to a better location and try again later.");
-          }
-        }
-      }
-    },
-    function () {
-      locationAttempts++;
-      if (locationAttempts >= maxLocationAttempts) {
-        navigator.geolocation.clearWatch(watchId);
-        let retry = confirm(
-          "Unable to retrieve location. Move to an open area and try again?"
-        );
-        if (retry) {
-          getAccurateLocation();
-        } else {
-          alert("Please move to a better location and try again later.");
-        }
-      }
-    },
-    { enableHighAccuracy: true }
-  );
-}
+// Function to set midpoint
+document.getElementById("midpointButton").addEventListener("click", function () {
+    if (lstLat !== null && lstLon !== null) {
+        midpoint = { lat: lstLat, lon: lstLon };
+        L.marker([lstLat, lstLon], { title: "Midpoint" }).addTo(map)
+            .bindPopup("Midpoint Here!").openPopup();
 
-// Notify User
-function notifyUser(message) {
-  if ("Notification" in window) {
-    if (Notification.permission === "granted") {
-      new Notification(message);
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          new Notification(message);
-        }
-      });
+        document.getElementById("midpointDisplay").textContent = `Midpoint: ${lstLat.toFixed(5)}, ${lstLon.toFixed(5)}`;
+        document.getElementById("statusText").textContent = "Midpoint Mapped! ✅";
+
+        // Enable trip name input
+        document.getElementById("tripName").disabled = false;
+        document.getElementById("tripForm").style.display = "block"; // Show trip form
+        alert("Midpoint mapped successfully!");
+    } else {
+        alert("Waiting for location... Please try again.");
+        showRetryingMessage();
     }
-  }
-  alert(message);
-}
+});
 
-// Prompt for Trip Name
-function promptForTripName() {
-  document.getElementById("tripForm").style.display = "block";
-  const tripNameInput = document.getElementById("tripName");
-  document.getElementById("tripForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    tripName = tripNameInput.value.trim();
-    if (tripName !== "") {
-      document.getElementById("tripForm").style.display = "none";
-      document.getElementById("startButton").disabled = false;
+// Function to display "Retrying..." notification without clearing trip name
+function showRetryingMessage() {
+    if (!retrying) {
+        retrying = true;
+        document.getElementById("statusText").textContent = "Retrying to fetch location...";
+        setTimeout(() => {
+            retrying = false;
+            document.getElementById("statusText").textContent = midpoint
+                ? "Midpoint Mapped! ✅"
+                : "Midpoint not mapped.";
+        }, 4000); // Show retrying message for 3 seconds
     }
-  });
 }
 
-// Start Tracking Trip
-function startTracking() {
-  if (tripStarted) return;
-  tripStarted = true;
-  previousLocation = { ...currentLocation };
-  trackingInterval = setInterval(updateLocation, 10000);
-  document.getElementById("statusText").innerText = "Tracking...";
-  document.getElementById("startButton").disabled = true;
-  document.getElementById("stopButton").disabled = false;
-}
+// Handle trip name input (Only enabled after midpoint is mapped)
+document.getElementById("tripName").addEventListener("input", function () {
+    tripName = this.value.trim();
+    document.getElementById("tripNameDisplay").textContent = tripName || "Not Set";
 
-// Stop Tracking Trip
-function stopTracking() {
-  tripStarted = false;
-  clearInterval(trackingInterval);
-  document.getElementById("statusText").innerText = "Trip Ended";
-  document.getElementById("startButton").disabled = false;
-  document.getElementById("stopButton").disabled = true;
-  downloadTripData();
-}
+    // Enable the Start button only if a trip name is entered
+    document.getElementById("startButton").disabled = tripName === "";
+});
 
-// Update User Location
-function updateLocation() {
-  navigator.geolocation.getCurrentPosition(
-    function (position) {
-      let newLat = position.coords.latitude;
-      let newLon = position.coords.longitude;
-      let accuracy = position.coords.accuracy;
-
-      if (accuracy > accuracyThreshold) {
-        console.log("Low accuracy, skipping update...");
+// Function to start tracking
+function start() {
+    if (!midpoint) {
+        alert("Please map the midpoint first!");
         return;
-      }
+    }
 
-      let distance = getDistance(previousLocation, { lat: newLat, lon: newLon });
+    if (!tripName) {
+        alert("Please enter a trip name first!");
+        return;
+    }
 
-      if (distance >= movementThreshold) {
-        previousLocation = { lat: newLat, lon: newLon };
-        totalDistanceCovered += distance;
-        locations.push({ lat: newLat, lon: newLon });
+    tracking = true;
+    distance = 0;
+    document.getElementById("statusText").textContent = "Tracking in Progress...";
+    document.getElementById("startButton").disabled = true;
+    document.getElementById("stopButton").disabled = false;
 
-        userMarker.setLatLng([newLat, newLon]);
-        routeLine.addLatLng([newLat, newLon]);
-
-        document.getElementById("distanceCounter").innerText =
-          totalDistanceCovered.toFixed(2);
-      }
-    },
-    function (error) {
-      console.error("Error getting location:", error);
-    },
-    { enableHighAccuracy: true }
-  );
+    whereAmI();
 }
 
-// Calculate Distance Between Two Points
-function getDistance(loc1, loc2) {
-  const R = 6371; // Radius of the Earth in km
-  const dLat = toRad(loc2.lat - loc1.lat);
-  const dLon = toRad(loc2.lon - loc1.lon);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(loc1.lat)) *
-      Math.cos(toRad(loc2.lat)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+// Function to stop tracking
+function stop() {
+    if (tracking) {
+        tracking = false;
+        document.getElementById("statusText").textContent = "Tracking Stopped.";
+        document.getElementById("startButton").disabled = false;
+        document.getElementById("stopButton").disabled = true;
+    }
 }
 
-// Convert Degrees to Radians
-function toRad(degrees) {
-  return (degrees * Math.PI) / 180;
+// Function to get real-time location updates
+function whereAmI() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            function (position) {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+
+                if (lstLat !== null && lstLon !== null) {
+                    distance += distCovered(lstLat, lstLon, lat, lon);
+                }
+
+                lstLat = lat;
+                lstLon = lon;
+
+                // Update the map position
+                userMarker.setLatLng([lat, lon]);
+                map.setView([lat, lon], 15);
+
+                // Update distance display
+                document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
+            },
+            function () {
+                alert("Location permission denied. Please enable it.");
+                showRetryingMessage();
+            }
+        );
+    } else {
+        alert("Your browser does not support location tracking!");
+    }
 }
 
-// Download Trip Data
-function downloadTripData() {
-  let tripData = {
-    tripName: tripName,
-    totalDistance: totalDistanceCovered.toFixed(2) + " km",
-    midpoint: midpoint,
-    locations: locations,
-  };
-  let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tripData));
-  let downloadAnchor = document.createElement("a");
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", tripName + "_trip_data.json");
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  document.body.removeChild(downloadAnchor);
+// Function to calculate distance using Haversine formula
+function distCovered(lat1, lon1, lat2, lon2) {
+    let earthRadius = 6371000;
+    let toRad = Math.PI / 180;
+    let dLat = (lat2 - lat1) * toRad;
+    let dLon = (lon2 - lon1) * toRad;
+    let a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadius * c;
 }
 
-// Event Listeners
-document.getElementById("startButton").addEventListener("click", startTracking);
-document.getElementById("stopButton").addEventListener("click", stopTracking);
+// Initialize map when the page loads
+window.onload = initMap;
 
-// Initialize the Map and Get User Location
-initMap();
-getAccurateLocation();
+// Button event listeners
+document.getElementById("startButton").addEventListener("click", start);
+document.getElementById("stopButton").addEventListener("click", stop);

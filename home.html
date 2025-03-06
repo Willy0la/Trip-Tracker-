@@ -3,32 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Trip Tracker</title>
+    <title>Live Trip Tracker</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
-
     <div class="container">
-        <h1>Real-Time Trip Tracker</h1>
+        <h1>Live Trip Tracker</h1>
+        <p id="statusText">Midpoint not mapped.</p>
+        <p id="retryMessage" style="color: red;"></p> 
 
-        <form id="tripForm">
-            <label for="tripName">Enter Trip Name:</label>
-            <input type="text" id="tripName" required>
-            <button type="submit">Start Trip</button>
-        </form>
+        <button id="midpointButton">Map Midpoint</button>
+        <p id="midpointDisplay">Midpoint: Not Set</p>
 
-        <div id="map"></div>
-
-        <div class="info">
-            <p>Status: <span id="statusText">Not started</span></p>
-            <p>Total Distance: <span id="distanceCounter">0</span> km</p>
+        <div id="tripForm">
+            <label for="tripName">Trip Name:</label>
+            <input type="text" id="tripName" placeholder="Enter trip name">
             <button id="startButton" disabled>Start Tracking</button>
             <button id="stopButton" disabled>Stop Tracking</button>
         </div>
+        
+ 
+        <p>Trip Name: <span id="tripNameDisplay">Not Set</span></p>
+        <p>Total Distance: <span id="distanceCounter">0</span> km</p>
+
+        <div id="map"></div>
+
+
+        <div id="display"></div>
     </div>
 
-    <script src="trippy.js"></script>
+    <script defer src="trippy.js"></script>
+
 </body>
 </html>

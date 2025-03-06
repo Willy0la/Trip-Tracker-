@@ -1,83 +1,132 @@
+/* General page layout */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f9;
+}
+
+/* Container styles */
+#container {
+  width: 80%;
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+/* Trip name input form */
+form {
+  margin-bottom: 20px;
+}
+
+input[type="text"] {
+  padding: 10px;
+  font-size: 16px;
+  width: 70%;
+  margin-bottom: 10px;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Error message */
+#errorMessage {
+  display: none;
+  color: red;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+/* Button styles */
+button {
+  background-color: #007bff;
+  color: white;
+  padding: 12px 25px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 10px;
+}
+
+button:disabled {
+  background-color: #d6d6d6;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+button:active:not(:disabled) {
+  background-color: #00408d;
+}
+
+/* Display styles for tracking data */
+#display {
+  margin-top: 20px;
+  text-align: left;
+  max-height: 200px;
+  overflow-y: scroll;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+/* Header and paragraph styling */
+h1 {
+  color: #333;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+p {
+  font-size: 18px;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+#statusText {
+  font-weight: bold;
+}
+
 body {
   font-family: Arial, sans-serif;
   text-align: center;
-  background-color: #f5f5f5;
   margin: 0;
   padding: 0;
 }
 
 .container {
-  width: 90%;
   max-width: 600px;
-  margin: 20px auto;
+  margin: auto;
   padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-h1 {
-  color: #333;
-}
-
-form {
-  margin-bottom: 15px;
-}
-
-label {
-  font-weight: bold;
-}
-
-input {
-  padding: 8px;
-  width: 80%;
-  margin: 10px 0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
-
-button {
-  padding: 10px 15px;
-  margin: 5px;
-  border: none;
-  background: #28a745;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-  border-radius: 5px;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background: #218838;
 }
 
 #map {
-  width: 100%;
   height: 400px;
-  border-radius: 5px;
-  margin: 15px 0;
+  margin-top: 20px;
+  border: 1px solid #ccc;
 }
 
-.info {
-  background: #e3e3e3;
+button {
+  margin: 10px;
   padding: 10px;
-  border-radius: 5px;
+  font-size: 16px;
 }
 
-.info p {
-  font-size: 18px;
-  margin: 5px 0;
-}
-
-#stopButton {
-  background: #dc3545;
-}
-
-#stopButton:hover:not(:disabled) {
-  background: #c82333;
+input {
+  padding: 10px;
+  font-size: 16px;
 }
