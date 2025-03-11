@@ -22,26 +22,24 @@ async function initMap() {
     userMarker = L.marker([0, 0]).addTo(map);
 
     try {
-        const position = await getAccuratePosition(20); // Ensure accuracy before setting position
+        const position = await getAccuratePosition(20);
         lstLat = position.coords.latitude;
         lstLon = position.coords.longitude;
         userMarker.setLatLng([lstLat, lstLon]);
         map.setView([lstLat, lstLon], 15);
-        document.getElementById("midpointButton").disabled = false; // Enable midpoint button
+        document.getElementById("midpointButton").disabled = false;
     } catch (error) {
         alert("Unable to retrieve accurate location. Please enable GPS.");
         console.error("Geolocation Error:", error.message);
     }
 }
 
-// Ensure map loads when the page loads
 window.onload = initMap;
 
-// Function to set midpoint (with accuracy check)
 document.getElementById("midpointButton").addEventListener("click", async function () {
     document.getElementById("statusText").textContent = "Checking GPS accuracy...";
     try {
-        const position = await getAccuratePosition(15); // Wait until accuracy is ≤ 15m
+        const position = await getAccuratePosition(15);
         lstLat = position.coords.latitude;
         lstLon = position.coords.longitude;
 
@@ -51,23 +49,21 @@ document.getElementById("midpointButton").addEventListener("click", async functi
 
         document.getElementById("midpointDisplay").textContent = `Midpoint: ${lstLat.toFixed(5)}, ${lstLon.toFixed(5)}`;
         document.getElementById("statusText").textContent = "Midpoint Mapped! ✅";
-
-        document.getElementById("tripName").disabled = false;
-        document.getElementById("tripForm").style.display = "block";
         document.getElementById("startButton").disabled = false;
-        document.getElementById("midpointButton").disabled = true; // Disable after setting
+        document.getElementById("midpointButton").disabled = true;
     } catch (error) {
         alert("Failed to get an accurate midpoint. Try again.");
     }
 });
 
-// Handle trip name input
+document.getElementById("startButton").addEventListener("click", start);
+document.getElementById("stopButton").addEventListener("click", stop);
+
 document.getElementById("tripName").addEventListener("input", function () {
     tripName = this.value.trim();
     document.getElementById("tripNameDisplay").textContent = tripName || "Not Set";
 });
 
-// Function to start tracking
 function start() {
     if (!midpoint) {
         alert("Please map the midpoint first!");
@@ -81,61 +77,49 @@ function start() {
     tracking = true;
     distance = 0;
     tripData = [];
-    document.getElementById("statusText").textContent = "Tracking in Progress...";
     document.getElementById("startButton").disabled = true;
     document.getElementById("stopButton").disabled = false;
-    document.getElementById("midpointButton").disabled = true;
-
+    document.getElementById("statusText").textContent = "Tracking in Progress...";
     whereAmI();
 }
 
-// Function to stop tracking
 function stop() {
     tracking = false;
     clearInterval(locationUpdateInterval);
-    document.getElementById("statusText").textContent = "Tracking Stopped.";
     document.getElementById("startButton").disabled = false;
     document.getElementById("stopButton").disabled = true;
+    document.getElementById("statusText").textContent = "Tracking Stopped.";
     downloadTripData();
 }
 
-// Function to get real-time location updates with accuracy check
 function whereAmI() {
-    if (navigator.geolocation) {
-        locationUpdateInterval = setInterval(async () => {
-            try {
-                const position = await getAccuratePosition(10); // Ensure accuracy ≤ 10m
-                if (!tracking) return;
+    locationUpdateInterval = setInterval(async () => {
+        try {
+            const position = await getAccuratePosition(10);
+            if (!tracking) return;
 
-                let lat = position.coords.latitude;
-                let lon = position.coords.longitude;
-                let locationName = await getLocationName(lat, lon);
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+            let accuracy = position.coords.accuracy;
+            let locationName = await getLocationName(lat, lon);
 
-                if (lstLat !== null && lstLon !== null) {
-                    let newDistance = distCovered(lstLat, lstLon, lat, lon);
-                    if (newDistance > 0.5) {
-                        distance += newDistance;
-                        tripData.push({ lat, lon, accuracy: position.coords.accuracy, name: locationName });
-
-                        document.getElementById("statusText").textContent = "New location mapped!";
-                    }
-                }
-
-                lstLat = lat;
-                lstLon = lon;
-                userMarker.setLatLng([lat, lon]);
-                map.setView([lat, lon], 15);
-                document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
-            } catch (error) {
-                console.error("Location update failed:", error);
+            if (lstLat !== null && lstLon !== null) {
+                let newDistance = distCovered(lstLat, lstLon, lat, lon);
+                distance += newDistance;
+                tripData.push({ lat, lon, accuracy, name: locationName });
             }
-        }, 10000);
-    } else {
-        alert("Your browser does not support location tracking!");
-    }
+
+            lstLat = lat;
+            lstLon = lon;
+            userMarker.setLatLng([lat, lon]);
+            map.setView([lat, lon], 15);
+            document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
+        } catch (error) {
+            console.error("Location update failed:", error);
+        }
+    }, 10000);
 }
 
-// Function to get accurate position
 async function getAccuratePosition(maxAccuracy) {
     return new Promise((resolve, reject) => {
         function attemptPosition() {
@@ -156,7 +140,6 @@ async function getAccuratePosition(maxAccuracy) {
     });
 }
 
-// Function to fetch location name from coordinates
 async function getLocationName(lat, lon) {
     try {
         let response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
@@ -167,7 +150,20 @@ async function getLocationName(lat, lon) {
     }
 }
 
-// Function to download trip data as JSON
+function distCovered(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 function downloadTripData() {
     let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
         name: tripName,
@@ -182,6 +178,7 @@ function downloadTripData() {
     downloadAnchor.click();
     document.body.removeChild(downloadAnchor);
 }
+
 
 // Button event listeners
 document.getElementById("startButton").addEventListener("click", start);
