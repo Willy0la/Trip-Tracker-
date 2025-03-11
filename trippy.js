@@ -22,16 +22,14 @@ async function initMap() {
     userMarker = L.marker([0, 0]).addTo(map);
 
     try {
-        const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-        });
-
+        const position = await getAccuratePosition(20); // Ensure accuracy before setting position
         lstLat = position.coords.latitude;
         lstLon = position.coords.longitude;
         userMarker.setLatLng([lstLat, lstLon]);
         map.setView([lstLat, lstLon], 15);
+        document.getElementById("midpointButton").disabled = false; // Enable midpoint button
     } catch (error) {
-        alert("Unable to retrieve location. Please enable GPS.");
+        alert("Unable to retrieve accurate location. Please enable GPS.");
         console.error("Geolocation Error:", error.message);
     }
 }
@@ -39,21 +37,27 @@ async function initMap() {
 // Ensure map loads when the page loads
 window.onload = initMap;
 
-// Function to set midpoint
-document.getElementById("midpointButton").addEventListener("click", function () {
-    if (lstLat !== null && lstLon !== null) {
+// Function to set midpoint (with accuracy check)
+document.getElementById("midpointButton").addEventListener("click", async function () {
+    document.getElementById("statusText").textContent = "Checking GPS accuracy...";
+    try {
+        const position = await getAccuratePosition(15); // Wait until accuracy is ≤ 15m
+        lstLat = position.coords.latitude;
+        lstLon = position.coords.longitude;
+
         midpoint = { lat: lstLat, lon: lstLon };
         L.marker([lstLat, lstLon], { title: "Midpoint" }).addTo(map)
-            .bindPopup("Midpoint Here!").openPopup();
+            .bindPopup("Midpoint Here! ✅").openPopup();
 
         document.getElementById("midpointDisplay").textContent = `Midpoint: ${lstLat.toFixed(5)}, ${lstLon.toFixed(5)}`;
         document.getElementById("statusText").textContent = "Midpoint Mapped! ✅";
+
         document.getElementById("tripName").disabled = false;
         document.getElementById("tripForm").style.display = "block";
         document.getElementById("startButton").disabled = false;
-        document.getElementById("midpointButton").disabled = true;
-    } else {
-        alert("Waiting for location... Please try again.");
+        document.getElementById("midpointButton").disabled = true; // Disable after setting
+    } catch (error) {
+        alert("Failed to get an accurate midpoint. Try again.");
     }
 });
 
@@ -81,13 +85,14 @@ function start() {
     document.getElementById("startButton").disabled = true;
     document.getElementById("stopButton").disabled = false;
     document.getElementById("midpointButton").disabled = true;
-    
+
     whereAmI();
 }
 
 // Function to stop tracking
 function stop() {
     tracking = false;
+    clearInterval(locationUpdateInterval);
     document.getElementById("statusText").textContent = "Tracking Stopped.";
     document.getElementById("startButton").disabled = false;
     document.getElementById("stopButton").disabled = true;
@@ -98,47 +103,57 @@ function stop() {
 function whereAmI() {
     if (navigator.geolocation) {
         locationUpdateInterval = setInterval(async () => {
-            navigator.geolocation.getCurrentPosition(
-                async function (position) {
-                    let lat = position.coords.latitude;
-                    let lon = position.coords.longitude;
-                    let accuracy = position.coords.accuracy;
+            try {
+                const position = await getAccuratePosition(10); // Ensure accuracy ≤ 10m
+                if (!tracking) return;
 
-                    if (!tracking) return;
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                let locationName = await getLocationName(lat, lon);
 
-                    if (accuracy > 10) {
-                        document.getElementById("statusText").textContent = "Poor accuracy. Retrying...";
-                        return;
+                if (lstLat !== null && lstLon !== null) {
+                    let newDistance = distCovered(lstLat, lstLon, lat, lon);
+                    if (newDistance > 0.5) {
+                        distance += newDistance;
+                        tripData.push({ lat, lon, accuracy: position.coords.accuracy, name: locationName });
+
+                        document.getElementById("statusText").textContent = "New location mapped!";
                     }
+                }
 
-                    let locationName = await getLocationName(lat, lon);
-
-                    if (lstLat !== null && lstLon !== null) {
-                        let newDistance = distCovered(lstLat, lstLon, lat, lon);
-                        if (newDistance > 0.5) {
-                            distance += newDistance;
-                            let locationData = { lat, lon, accuracy, name: locationName };
-                            tripData.push(locationData);
-                            console.log("New location mapped:", locationData);
-                            document.getElementById("statusText").textContent = "New location mapped!";
-                        }
-                    }
-
-                    lstLat = lat;
-                    lstLon = lon;
-                    userMarker.setLatLng([lat, lon]);
-                    map.setView([lat, lon], 15);
-                    document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
-                },
-                function () {
-                    alert("Location permission denied. Please enable it.");
-                },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-            );
+                lstLat = lat;
+                lstLon = lon;
+                userMarker.setLatLng([lat, lon]);
+                map.setView([lat, lon], 15);
+                document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
+            } catch (error) {
+                console.error("Location update failed:", error);
+            }
         }, 10000);
     } else {
         alert("Your browser does not support location tracking!");
     }
+}
+
+// Function to get accurate position
+async function getAccuratePosition(maxAccuracy) {
+    return new Promise((resolve, reject) => {
+        function attemptPosition() {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (position.coords.accuracy <= maxAccuracy) {
+                        resolve(position);
+                    } else {
+                        document.getElementById("statusText").textContent = `Waiting for better accuracy... (Current: ${Math.round(position.coords.accuracy)}m)`;
+                        setTimeout(attemptPosition, 5000);
+                    }
+                },
+                (error) => reject(error),
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+        }
+        attemptPosition();
+    });
 }
 
 // Function to fetch location name from coordinates
