@@ -92,74 +92,75 @@ function stop() {
 // Function to get real-time location updates with accuracy check
 function whereAmI() {
     if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-            function (position) {
-                let lat = position.coords.latitude;
-                let lon = position.coords.longitude;
-                let accuracy = position.coords.accuracy;
+        setInterval(() => {
+            navigator.geolocation.getCurrentPosition(
+                async function (position) {
+                    let lat = position.coords.latitude;
+                    let lon = position.coords.longitude;
+                    let accuracy = position.coords.accuracy;
 
-                if (!tracking) return;
+                    if (!tracking) return;
 
-                if (accuracy > 10) { // Ensure accuracy within 10 meters
-                    document.getElementById("statusText").textContent = "Poor accuracy. Retrying...";
-                    return;
-                }
-
-                if (lstLat !== null && lstLon !== null) {
-                    let newDistance = distCovered(lstLat, lstLon, lat, lon);
-                    if (newDistance > 0.5) { // Ignore tiny movements
-                        distance += newDistance;
-                        tripData.push({ lat, lon, accuracy });
+                    if (accuracy > 10) {
+                        document.getElementById("statusText").textContent = "Poor accuracy. Retrying...";
+                        return;
                     }
-                }
 
-                lstLat = lat;
-                lstLon = lon;
-                userMarker.setLatLng([lat, lon]);
-                map.setView([lat, lon], 15);
-                document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
-            },
-            function () {
-                alert("Location permission denied. Please enable it.");
-            },
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-        );
+                    let locationName = await getLocationName(lat, lon);
+
+                    if (lstLat !== null && lstLon !== null) {
+                        let newDistance = distCovered(lstLat, lstLon, lat, lon);
+                        if (newDistance > 0.5) {
+                            distance += newDistance;
+                            let locationData = { lat, lon, accuracy, name: locationName };
+                            tripData.push(locationData);
+                            console.log("New location mapped:", locationData);
+                            document.getElementById("statusText").textContent = "New location mapped!";
+                        }
+                    }
+
+                    lstLat = lat;
+                    lstLon = lon;
+                    userMarker.setLatLng([lat, lon]);
+                    map.setView([lat, lon], 15);
+                    document.getElementById("distanceCounter").textContent = (distance / 1000).toFixed(2) + " km";
+                },
+                function () {
+                    alert("Location permission denied. Please enable it.");
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+        }, 10000);
     } else {
         alert("Your browser does not support location tracking!");
     }
 }
 
-// Function to calculate distance using Haversine formula
-function distCovered(lat1, lon1, lat2, lon2) {
-    let earthRadius = 6371000;
-    let toRad = Math.PI / 180;
-    let dLat = (lat2 - lat1) * toRad;
-    let dLon = (lon2 - lon1) * toRad;
-    let a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return earthRadius * c;
+// Function to fetch location name from coordinates
+async function getLocationName(lat, lon) {
+    try {
+        let response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        let data = await response.json();
+        return data.display_name || "Unknown Location";
+    } catch (error) {
+        return "Unknown Location";
+    }
 }
 
-// Generate and download trip data
-function generateTripData() {
-    const tripSummary = {
+// Function to generate trip data
+document.getElementById("downloadTripData").addEventListener("click", function () {
+    let tripSummary = {
         name: tripName,
         totalDistance: (distance / 1000).toFixed(2) + " km",
-        midpoint,
-        locations: tripData
+        midpoint: midpoint,
+        locations: tripData,
     };
-    console.log("Final Trip Data:", tripSummary);
-    const blob = new Blob([JSON.stringify(tripSummary, null, 2)], { type: "application/json" });
-    const link = document.createElement("a");
+    let blob = new Blob([JSON.stringify(tripSummary, null, 2)], { type: "application/json" });
+    let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `${tripName.replace(/\s+/g, '_')}_trip_data.json`;
-    document.body.appendChild(link);
+    link.download = "tripData.json";
     link.click();
-    document.body.removeChild(link);
-}
+});
 
 // Initialize map when the page loads
 window.onload = initMap;
