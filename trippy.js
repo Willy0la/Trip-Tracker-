@@ -11,6 +11,9 @@ let locationUpdateInterval;
 
 // Initialize the map
 async function initMap() {
+    if (map) {
+        map.remove(); // Ensure any existing map instance is removed before reinitializing
+    }
     map = L.map("map").setView([0, 0], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors"
@@ -32,6 +35,9 @@ async function initMap() {
         console.error("Geolocation Error:", error.message);
     }
 }
+
+// Ensure map loads when the page loads
+window.onload = initMap;
 
 // Function to set midpoint
 document.getElementById("midpointButton").addEventListener("click", function () {
@@ -85,14 +91,7 @@ function stop() {
     document.getElementById("statusText").textContent = "Tracking Stopped.";
     document.getElementById("startButton").disabled = false;
     document.getElementById("stopButton").disabled = true;
-    generateTripData();
-
-    // Allow new trip
-    document.getElementById("tripName").value = "";
-    document.getElementById("tripName").disabled = false;
-    document.getElementById("midpointButton").disabled = false;
-    tripName = "";
-    clearInterval(locationUpdateInterval);
+    downloadTripData();
 }
 
 // Function to get real-time location updates with accuracy check
@@ -153,19 +152,21 @@ async function getLocationName(lat, lon) {
     }
 }
 
-// Function to generate trip data
-function generateTripData() {
-    let tripDetails = {
+// Function to download trip data as JSON
+function downloadTripData() {
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
         name: tripName,
         totalDistance: (distance / 1000).toFixed(2) + " km",
-        midpoint: midpoint,
+        midpoint,
         locations: tripData
-    };
-    console.log("Trip Data:", tripDetails);
+    }, null, 2));
+    let downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${tripName}_trip_data.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
 }
-
-// Initialize map when the page loads
-window.onload = initMap;
 
 // Button event listeners
 document.getElementById("startButton").addEventListener("click", start);
