@@ -81,6 +81,12 @@ function stop() {
     document.getElementById("startButton").disabled = false;
     document.getElementById("stopButton").disabled = true;
     generateTripData();
+
+    // Allow new trip
+    document.getElementById("tripName").value = "";
+    document.getElementById("tripName").disabled = false;
+    document.getElementById("midpointButton").disabled = false;
+    tripName = "";
 }
 
 // Function to get real-time location updates with accuracy check
@@ -94,7 +100,7 @@ function whereAmI() {
 
                 if (!tracking) return;
 
-                if (accuracy > 20) {  // Increased threshold from 10 to 20 meters
+                if (accuracy > 10) { // Ensure accuracy within 10 meters
                     document.getElementById("statusText").textContent = "Poor accuracy. Retrying...";
                     return;
                 }
@@ -116,7 +122,7 @@ function whereAmI() {
             function () {
                 alert("Location permission denied. Please enable it.");
             },
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }  // Increased timeout
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
     } else {
         alert("Your browser does not support location tracking!");
