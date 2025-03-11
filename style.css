@@ -1,4 +1,4 @@
-/* General page layout */
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -6,7 +6,7 @@ body {
   background-color: #f4f4f9;
 }
 
-/* Container styles */
+
 #container {
   width: 80%;
   max-width: 600px;
@@ -18,7 +18,7 @@ body {
   border-radius: 8px;
 }
 
-/* Trip name input form */
+
 form {
   margin-bottom: 20px;
 }
@@ -38,7 +38,7 @@ input[type="text"]:focus {
   border-color: #007bff;
 }
 
-/* Error message */
+
 #errorMessage {
   display: none;
   color: red;
@@ -46,7 +46,6 @@ input[type="text"]:focus {
   margin-top: 5px;
 }
 
-/* Button styles */
 button {
   background-color: #007bff;
   color: white;
@@ -72,7 +71,7 @@ button:active:not(:disabled) {
   background-color: #00408d;
 }
 
-/* Display styles for tracking data */
+
 #display {
   margin-top: 20px;
   text-align: left;
@@ -84,7 +83,6 @@ button:active:not(:disabled) {
   border-radius: 8px;
 }
 
-/* Header and paragraph styling */
 h1 {
   color: #333;
   font-size: 28px;
