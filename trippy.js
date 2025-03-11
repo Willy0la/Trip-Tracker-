@@ -7,9 +7,10 @@ let midpoint = null;
 let map;
 let userMarker;
 let tripData = [];
+let locationUpdateInterval;
 
 // Initialize the map
-function initMap() {
+async function initMap() {
     map = L.map("map").setView([0, 0], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors"
@@ -17,16 +18,19 @@ function initMap() {
 
     userMarker = L.marker([0, 0]).addTo(map);
 
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            lstLat = position.coords.latitude;
-            lstLon = position.coords.longitude;
-            userMarker.setLatLng([lstLat, lstLon]);
-            map.setView([lstLat, lstLon], 15);
-        },
-        () => alert("Unable to retrieve location. Please enable GPS."),
-        { enableHighAccuracy: true }
-    );
+    try {
+        const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+        });
+
+        lstLat = position.coords.latitude;
+        lstLon = position.coords.longitude;
+        userMarker.setLatLng([lstLat, lstLon]);
+        map.setView([lstLat, lstLon], 15);
+    } catch (error) {
+        alert("Unable to retrieve location. Please enable GPS.");
+        console.error("Geolocation Error:", error.message);
+    }
 }
 
 // Function to set midpoint
@@ -71,6 +75,7 @@ function start() {
     document.getElementById("startButton").disabled = true;
     document.getElementById("stopButton").disabled = false;
     document.getElementById("midpointButton").disabled = true;
+    
     whereAmI();
 }
 
@@ -87,12 +92,13 @@ function stop() {
     document.getElementById("tripName").disabled = false;
     document.getElementById("midpointButton").disabled = false;
     tripName = "";
+    clearInterval(locationUpdateInterval);
 }
 
 // Function to get real-time location updates with accuracy check
 function whereAmI() {
     if (navigator.geolocation) {
-        setInterval(() => {
+        locationUpdateInterval = setInterval(async () => {
             navigator.geolocation.getCurrentPosition(
                 async function (position) {
                     let lat = position.coords.latitude;
@@ -148,19 +154,15 @@ async function getLocationName(lat, lon) {
 }
 
 // Function to generate trip data
-document.getElementById("downloadTripData").addEventListener("click", function () {
-    let tripSummary = {
+function generateTripData() {
+    let tripDetails = {
         name: tripName,
         totalDistance: (distance / 1000).toFixed(2) + " km",
         midpoint: midpoint,
-        locations: tripData,
+        locations: tripData
     };
-    let blob = new Blob([JSON.stringify(tripSummary, null, 2)], { type: "application/json" });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "tripData.json";
-    link.click();
-});
+    console.log("Trip Data:", tripDetails);
+}
 
 // Initialize map when the page loads
 window.onload = initMap;
