@@ -115,7 +115,9 @@ document.getElementById("pickupButton").addEventListener("click", function () {
 
       document.getElementById(
         "midpointDisplay"
-      ).textContent = `New Midpoint: ${newLat.toFixed(5)}, ${newLon.toFixed(5)}`;
+      ).textContent = `New Midpoint: ${newLat.toFixed(5)}, ${newLon.toFixed(
+        5
+      )}`;
       document.getElementById("statusText").textContent =
         "New Midpoint Mapped! ✅";
 
