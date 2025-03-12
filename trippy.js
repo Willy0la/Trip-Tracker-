@@ -12,11 +12,11 @@ let locationUpdateInterval;
 // Initialize the map
 async function initMap() {
   if (map) {
-    map.remove(); 
+    map.remove();
   }
   map = L.map("map").setView([0, 0], 15);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors",
+    attribution: "©️ OpenStreetMap contributors",
   }).addTo(map);
 
   userMarker = L.marker([0, 0]).addTo(map);
@@ -87,9 +87,46 @@ function start() {
   tripData = [];
   document.getElementById("startButton").disabled = true;
   document.getElementById("stopButton").disabled = false;
+  document.getElementById("pickupButton").disabled = false;
   document.getElementById("statusText").textContent = "Tracking in Progress...";
   whereAmI();
 }
+
+// Pickup new midpoint logic with confirmation
+document.getElementById("pickupButton").addEventListener("click", function () {
+  const userConfirmed = window.confirm(
+    "Are you sure you want to set a new midpoint? This will reset the trip data."
+  );
+
+  if (userConfirmed) {
+    document.getElementById("statusText").textContent =
+      "Pick a new midpoint...";
+
+    map.once("click", function (e) {
+      const newLat = e.latlng.lat;
+      const newLon = e.latlng.lng;
+
+      midpoint = { lat: newLat, lon: newLon };
+
+      L.marker([newLat, newLon], { title: "New Midpoint" })
+        .addTo(map)
+        .bindPopup("New Midpoint Set! ✅")
+        .openPopup();
+
+      document.getElementById(
+        "midpointDisplay"
+      ).textContent = `New Midpoint: ${newLat.toFixed(5)}, ${newLon.toFixed(5)}`;
+      document.getElementById("statusText").textContent =
+        "New Midpoint Mapped! ✅";
+
+      // Reset trip data, since a new midpoint was selected
+      tripData = [];
+    });
+  } else {
+    document.getElementById("statusText").textContent =
+      "Midpoint selection canceled.";
+  }
+});
 
 function stop() {
   tracking = false;
@@ -101,34 +138,42 @@ function stop() {
 }
 
 function whereAmI() {
-    locationUpdateInterval = setInterval(async () => {
-      try {
-        const position = await getAccuratePosition(10);
-        if (!tracking) return;
-  
-        let lat = position.coords.latitude;
-        let lon = position.coords.longitude;
-        let accuracy = position.coords.accuracy;
-        let locationName = await getLocationName(lat, lon);
-        let timestamp = new Date().toISOString(); // Get the current timestamp
-  
-        if (lstLat !== null && lstLon !== null) {
-          let newDistance = distCovered(lstLat, lstLon, lat, lon);
-          distance += newDistance;
-          tripData.push({ lat, lon, accuracy, name: locationName, timestamp, distance: newDistance });
-        }
-  
-        lstLat = lat;
-        lstLon = lon;
-        userMarker.setLatLng([lat, lon]);
-        map.setView([lat, lon], 15);
-        document.getElementById("distanceCounter").textContent =
-          (distance / 1000).toFixed(2) + " km";
-      } catch (error) {
-        console.error("Location update failed:", error);
+  locationUpdateInterval = setInterval(async () => {
+    try {
+      const position = await getAccuratePosition(10);
+      if (!tracking) return;
+
+      let lat = position.coords.latitude;
+      let lon = position.coords.longitude;
+      let accuracy = position.coords.accuracy;
+      let locationName = await getLocationName(lat, lon);
+      let timestamp = new Date().toISOString(); // Get the current timestamp
+
+      if (midpoint) {
+        // Calculate distance from the current midpoint (either the original or the picked one)
+        let newDistance = distCovered(midpoint.lat, midpoint.lon, lat, lon);
+        distance += newDistance;
+        tripData.push({
+          lat,
+          lon,
+          accuracy,
+          name: locationName,
+          timestamp,
+          distance: newDistance,
+        });
       }
-    }, 10000);
-  }
+
+      lstLat = lat;
+      lstLon = lon;
+      userMarker.setLatLng([lat, lon]);
+      map.setView([lat, lon], 15);
+      document.getElementById("distanceCounter").textContent =
+        (distance / 1000).toFixed(2) + " km";
+    } catch (error) {
+      console.error("Location update failed:", error);
+    }
+  }, 10000);
+}
 
 async function getAccuratePosition(maxAccuracy) {
   return new Promise((resolve, reject) => {
@@ -181,35 +226,31 @@ function distCovered(lat1, lon1, lat2, lon2) {
 }
 
 function downloadTripData() {
-    let dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(
-        JSON.stringify(
-          {
-            name: tripName,
-            totalDistance: (distance / 1000).toFixed(2) + " km",
-            midpoint,
-            locations: tripData.map((entry) => ({
-              lat: entry.lat,
-              lon: entry.lon,
-              accuracy: entry.accuracy,
-              name: entry.name,
-              timestamp: entry.timestamp,
-              distanceCovered: (entry.distance / 1000).toFixed(2) + " km", // Adding distance covered for each point
-            })),
-          },
-          null,
-          2
-        )
-      );
-    let downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `${tripName}_trip_data.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
-  }
-
-// Button event listeners
-document.getElementById("startButton").addEventListener("click", start);
-document.getElementById("stopButton").addEventListener("click", stop);
+  let dataStr =
+    "data:text/json;charset=utf-8," +
+    encodeURIComponent(
+      JSON.stringify(
+        {
+          name: tripName,
+          totalDistance: (distance / 1000).toFixed(2) + " km",
+          midpoint,
+          locations: tripData.map((entry) => ({
+            lat: entry.lat,
+            lon: entry.lon,
+            accuracy: entry.accuracy,
+            name: entry.name,
+            timestamp: entry.timestamp,
+            distanceCovered: (entry.distance / 1000).toFixed(2) + " km", // Adding distance covered for each point
+          })),
+        },
+        null,
+        2
+      )
+    );
+  let downloadAnchor = document.createElement("a");
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `${tripName}_trip_data.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  document.body.removeChild(downloadAnchor);
+}
